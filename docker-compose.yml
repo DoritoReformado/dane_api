@@ -1,0 +1,51 @@
+services:
+  python:
+    build:
+      context: ./python/
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./python/Georeferencer:/usr/src/app
+    environment:
+      - WORKDIRAPP=${WORKDIRAPP}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=postgres
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DJANGO_DEBUG=${DJANGO_DEBUG}
+      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
+    working_dir: ${WORKDIRAPP}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - dragonfly-celery
+    command: tail -f /dev/null
+    # command: >
+    #   bash -lc "
+    #   source .venv/bin/activate
+    #   cd ./georeferencer
+    #   python3 manage.py runserver 0.0.0.0:8000 &
+    #   celery -A config worker --loglevel=info &
+    #   celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    #   "
+  postgres:
+    build:
+      context: ./postgres/
+      dockerfile: Dockerfile.dev  # Dockerfile personalizado para PostGIS con PostgreSQL 16
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Persistencia de datos
+  dragonfly-celery:
+    image: 'docker.dragonflydb.io/dragonflydb/dragonfly'
+    ulimits:
+      memlock: -1
+    ports:
+      - "6379:6379"
+volumes:
+  postgres_data:

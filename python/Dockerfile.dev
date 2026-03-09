@@ -1,0 +1,20 @@
+FROM python:3.12-slim
+
+# 1. Dependencias del sistema
+RUN apt-get update && apt-get install -y \
+    apt-utils \
+    curl \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# 2. Instalar uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 3. Añadir uv al PATH (para TODAS las capas siguientes)
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# 4. Directorio de trabajo
+WORKDIR /usr/src/app
+
+# 5. Copiar proyecto
+#COPY Georeferencer /usr/src/app
