@@ -1,29 +1,21 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-from dotenv import load_dotenv
+from arango import ArangoClient
 import os
+from dotenv import load_dotenv
+
 load_dotenv()
-# env = environ.Env()
-# environ.Env.read_env()
 
-DATABASE_USER = os.getenv('POSTGRES_USER')
-DATABASE_PASSWORD = os.getenv('POSTGRES_PASSWORD')
-DATABASE_NAME = os.getenv('POSTGRES_DB')
-DATABASE_HOST = os.getenv('POSTGRES_HOST', 'localhost')
-DATABASE_PORT = os.getenv('POSTGRES_PORT', '5432')
+ARANGO_HOST = os.getenv("ARANGO_HOST", "http://localhost:8529")
+ARANGO_DB = os.getenv("ARANGO_DB")
+ARANGO_USER = os.getenv("ARANGO_USER")
+ARANGO_PASSWORD = os.getenv("ARANGO_PASSWORD")
 
-DATABASE_URL = f"postgresql+psycopg2://{DATABASE_USER}:{DATABASE_PASSWORD}@{DATABASE_HOST}:{DATABASE_PORT}/{DATABASE_NAME}"
+client = ArangoClient(hosts=ARANGO_HOST)
 
-engine = create_engine(DATABASE_URL, echo=False)
+db = client.db(
+    ARANGO_DB,
+    username=ARANGO_USER,
+    password=ARANGO_PASSWORD
+)
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-Base = declarative_base()
-
-# Dependencia para obtener sesión en cada request
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    return db

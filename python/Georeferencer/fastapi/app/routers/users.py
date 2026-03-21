@@ -1,48 +1,44 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-
-from app import models, schemas
+from fastapi import APIRouter, Depends, HTTPException
 from app.database import get_db
+from app import schemas
+from arango.exceptions import CollectionCreateError
+import logging
 from passlib.context import CryptContext
-
-router = APIRouter(prefix="/users", tags=["users"])
+from .managers import *
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+router = APIRouter(prefix="/users", tags=["users"])
+logger = logging.getLogger(__name__)
 
+collection_name = "users"
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 @router.get("/", response_model=list[schemas.User])
-def list_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    print(dir(models))
-    users = db.query(models.User).offset(skip).limit(limit).all()
+def list_users(db = Depends(get_db)):
+    ensure_collection(db, collection_name)
+    collection = db.collection(collection_name)
+    users = [doc for doc in collection.all()]
     return users
 
-@router.post("/", response_model=schemas.User, status_code=status.HTTP_201_CREATED)
-def create_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
-    # ¿existe ya?
-    existing = db.query(models.User).filter(models.User.email == user_in.email).first()
+@router.post("/", response_model=schemas.User)
+def create_user(user_in: schemas.UserCreate, db = Depends(get_db)):
+    ensure_collection(db, collection_name)
+    collection = db.collection(collection_name)
+    
+    # Comprobar si email existe
+    existing = list(collection.find({"email": user_in.email}, limit=1))
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El usuario ya existe",
-        )
+        raise HTTPException(status_code=400, detail="El usuario ya existe")
 
-    db_user = models.User(
-        email=user_in.email,
-        full_name=user_in.full_name,
-        hashed_password=get_password_hash(user_in.password),
-    )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
+    hashed_password = get_password_hash(user_in.password)
 
-
-@router.get("/{user_id}", response_model=schemas.User)
-def get_user(user_id: int, db: Session = Depends(get_db)):
-    db_user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not db_user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    return db_user
+    doc = {
+        "email": user_in.email,
+        "full_name": user_in.full_name,
+        "hashed_password": hashed_password,  # aquí deberías hashearla
+    }
+    meta = collection.insert(doc)
+    doc["_key"] = meta["_key"]
+    return doc
