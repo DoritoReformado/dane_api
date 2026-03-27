@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse, FileResponse
 import pkgutil
 import importlib
 from app.routers import all_routers
@@ -21,16 +22,17 @@ API para el consumo de informacion recompilada del DANE
     },
 )
 app.mount("/media", StaticFiles(directory="app/media"), name="media")
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 for router in all_routers:
     app.include_router(router)
 
-@app.get("/")
-def root():
-    response = []
-    for route in app.routes:
-        response.append(f"{route.name}:{route.path}")
+async def favicon():
+    return FileResponse("app/static/IMG/cenigaalogo.png", media_type="image/png")
 
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon_redirect():
+    return await favicon()
 
-    return {
-        "routes": response
-    }
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def root():
+    return FileResponse("app/static/HTML/index.html")

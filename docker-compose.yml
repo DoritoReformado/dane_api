@@ -17,7 +17,7 @@ services:
       - ARANGO_PASSWORD=${ARANGO_PASSWORD}
     working_dir: ${WORKDIRAPP}
     ports:
-      - "8000:8000"
+      - "8010:8000"
     depends_on:
       - arangodb
       - dragonfly-celery
@@ -45,7 +45,7 @@ services:
     ulimits:
       memlock: -1
     ports:
-      - "6379:6379"
+      - "6390:6379"
 volumes:
   arangodb_data:
   arangodb_apps:
